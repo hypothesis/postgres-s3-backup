@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# postgres-backup
+#
+# This script is intended to be run in a cronjob to take daily backups of a
+# PostgreSQL database.
+#
+# postgres-backup takes no arguments, but can optionally be configured
+# through environment variables, the details of which can be found immediately
+# below:
+
+# PostgreSQL connection string
+: ${DATABASE_URL:=postgres://postgres@localhost:5432/postgres}
+# Name of the dump to take. Defaults to "postgres-<isodate>".
+: ${DUMP:=postgres-$(date +"%Y-%m-%d-%H%M%S")}
+# S3 prefix in the form of `s3://bucket-name/folder`
+: ${S3_URL:=}
+# A "Dead Man's Snitch" URL. Optional.
+: ${SNITCH_URL:=}
+
+local localpath=/var/lib/backup/$DUMP.dump
+
+set -eu
+
+abort() {
+    echo "error: $@" >&2
+    exit 1
+}
+
+check_aws_credentials() {
+    if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+        abort "need to have AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY variables set"
+    fi
+}
+
+check_s3_url() {
+    if [ -z "$S3_URL" ]; then
+        abort "need to have S3_URL variable set"
+    fi
+}
+
+dump() {
+  if ! $(pg_dump --clean --format=c -f $localpath $DATABASE_URL); then
+        abort "couldn't dump database"
+    fi
+}
+
+upload() {
+    local s3path=${S3_URL%%/}/${localpath##*/}
+    aws s3 cp $localpath $s3path
+}
+
+snitch () {
+    if [ -n "$SNITCH_URL" ]; then
+        curl -sSL -o/dev/null "$SNITCH_URL"
+    fi
+}
+
+main() {
+    # Check AWS credentials.
+    check_aws_credentials
+
+    # Check S3_URL.
+    check_s3_url
+
+    # Backup database dump.
+    dump
+
+    # Upload to S3.
+    upload
+
+    # Report the backup.
+    snitch
+}
+
+main
