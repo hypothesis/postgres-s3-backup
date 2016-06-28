@@ -47,7 +47,7 @@ dump() {
 
 upload() {
     local s3path=${S3_URL%%/}/${localpath##*/}
-    aws s3 cp $localpath $s3path
+    aws s3 cp --quiet $localpath $s3path || abort "failed to upload dump"
 }
 
 snitch () {
