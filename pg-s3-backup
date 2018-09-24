@@ -46,6 +46,11 @@ dump() {
 }
 
 upload() {
+    # Use signature version 4 signing to support buckets with server-side
+    # encryption enabled.
+    # See https://aws.amazon.com/blogs/security/how-to-use-the-rest-api-to-encrypt-s3-objects-by-using-aws-kms/
+    aws configure set s3.signature_version s3v4
+
     local s3path=${S3_URL%%/}/${localpath##*/}
     aws s3 cp --quiet $localpath $s3path || abort "failed to upload dump"
 }
