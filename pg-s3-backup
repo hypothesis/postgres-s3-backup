@@ -19,13 +19,11 @@
 # Name of the dump for LMS
 : ${LMS_DUMP:=lms-$(date +"%Y-%m-%d-%H%M%S")}
 
-# S3 prefix in the form of `s3://bucket-name/folder`
-: ${S3_URL:=}
 # A "Dead Man's Snitch" URL. Optional.
 : ${SNITCH_URL:=}
 
-local localpath_h=/var/lib/backup/$H_DUMP.dump
-local localpath_lms=/var/lib/backup/$LMS_DUMP.dump
+localpath_h=/var/lib/backup/$H_DUMP.dump
+localpath_lms=/var/lib/backup/$LMS_DUMP.dump
 
 set -eu
 
@@ -61,9 +59,9 @@ dump_lms() {
 upload() {
     # Configure aws signature version for server side encryption.
     aws configure set s3.signature_version s3v4
-    local s3path=${S3_URL%%/}/${localpath_h##*/}
-    aws s3 cp --only-show-errors $localpath_h ${S3_URL%%/}/${localpath_h##*/} || abort "failed to upload h dump"
-    aws s3 cp --only-show-errors $localpath_lms ${S3_URL%%/}/${localpath_lms##*/} || abort "failed to upload lms dump"
+    # local s3path=${S3_URL%%/}/${localpath_h##*/}
+    aws s3 cp --only-show-errors $localpath_h s3://hypothesis-backup-pg/dumps/h/${localpath_h##*/} || abort "failed to upload h dump"
+    aws s3 cp --only-show-errors $localpath_lms s3://hypothesis-backup-pg/dumps/lms/${localpath_lms##*/} || abort "failed to upload lms dump"
 
 }
 
