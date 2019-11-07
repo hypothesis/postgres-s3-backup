@@ -10,15 +10,22 @@
 # below:
 
 # PostgreSQL connection string
-: ${DATABASE_URL:=postgres://postgres@localhost:5432/postgres}
-# Name of the dump to take. Defaults to "postgres-<isodate>".
-: ${DUMP:=postgres-$(date +"%Y-%m-%d-%H%M%S")}
+: ${H_DATABASE_URL:=postgres://postgres@localhost:5432/postgres}
+
+: ${LMS_DATABASE_URL:=postgres://postgres@localhost:5432/postgres}
+
+# Name of the dump to take for H. Defaults to "postgres-<isodate>".
+: ${H_DUMP:=h-$(date +"%Y-%m-%d-%H%M%S")}
+# Name of the dump for LMS
+: ${LMS_DUMP:=lms-$(date +"%Y-%m-%d-%H%M%S")}
+
 # S3 prefix in the form of `s3://bucket-name/folder`
 : ${S3_URL:=}
 # A "Dead Man's Snitch" URL. Optional.
 : ${SNITCH_URL:=}
 
-local localpath=/var/lib/backup/$DUMP.dump
+local localpath_h=/var/lib/backup/$H_DUMP.dump
+local localpath_lms=/var/lib/backup/$LMS_DUMP.dump
 
 set -eu
 
@@ -39,8 +46,14 @@ check_s3_url() {
     fi
 }
 
-dump() {
-  if ! $(pg_dump --clean --format=c -f $localpath $DATABASE_URL); then
+dump_h() {
+  if ! $(pg_dump --clean --format=c -f $localpath_h $H_DATABASE_URL); then
+        abort "couldn't dump database"
+    fi
+}
+
+dump_lms() {
+  if ! $(pg_dump --clean --format=c -f $localpath_lms $LMS_DATABASE_URL); then
         abort "couldn't dump database"
     fi
 }
@@ -48,8 +61,10 @@ dump() {
 upload() {
     # Configure aws signature version for server side encryption.
     aws configure set s3.signature_version s3v4
-    local s3path=${S3_URL%%/}/${localpath##*/}
-    aws s3 cp --only-show-errors $localpath $s3path || abort "failed to upload dump"
+    local s3path=${S3_URL%%/}/${localpath_h##*/}
+    aws s3 cp --only-show-errors $localpath ${S3_URL%%/}/${localpath_h##*/} || abort "failed to upload h dump"
+    aws s3 cp --only-show-errors $localpath ${S3_URL%%/}/${localpath_lms##*/} || abort "failed to upload lms dump"
+
 }
 
 snitch () {
@@ -66,7 +81,8 @@ main() {
     check_s3_url
 
     # Backup database dump.
-    dump
+    dump_h
+    dump_lms
 
     # Upload to S3.
     upload
