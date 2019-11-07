@@ -62,8 +62,8 @@ upload() {
     # Configure aws signature version for server side encryption.
     aws configure set s3.signature_version s3v4
     local s3path=${S3_URL%%/}/${localpath_h##*/}
-    aws s3 cp --only-show-errors $localpath ${S3_URL%%/}/${localpath_h##*/} || abort "failed to upload h dump"
-    aws s3 cp --only-show-errors $localpath ${S3_URL%%/}/${localpath_lms##*/} || abort "failed to upload lms dump"
+    aws s3 cp --only-show-errors $localpath_h ${S3_URL%%/}/${localpath_h##*/} || abort "failed to upload h dump"
+    aws s3 cp --only-show-errors $localpath_lms ${S3_URL%%/}/${localpath_lms##*/} || abort "failed to upload lms dump"
 
 }
 
